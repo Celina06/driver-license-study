@@ -5,3 +5,5 @@
 .question-image{display:block;width:100%;max-height:390px;object-fit:contain;margin:12px auto 20px;background:white;border:1px solid #dce1e8;border-radius:12px;padding:12px;box-sizing:border-box}.question-image[hidden]{display:none}
 
 .solution-row{padding:12px 0;border-bottom:1px solid #dce3ef}.solution-row b{display:block;margin-bottom:6px;color:#173f81}.solution-row p{margin:0;line-height:1.65}.option-review{margin-top:15px;padding:10px;background:#fff;border-radius:12px}.option-analysis{padding:12px 3px;border-bottom:1px solid #e5e7eb}.option-analysis p{margin:5px 0 0;font-size:.92em;line-height:1.55}.option-review summary{cursor:pointer;font-weight:700}
+
+header{margin-bottom:16px}header h1{font-size:23px;margin:0 0 8px}.version{font-size:12px;font-weight:500;color:#64748b}.visual-toggle{font-size:13px;color:#475569}.visual-toggle input{accent-color:#183f82}.control{margin:4px 0 12px}.paper{margin-top:14px}.solution-row{padding:9px 0}.memo{margin:12px 0}.eyebrow{font-size:12px}.tools{margin-top:18px}#roundToast:empty{display:none}

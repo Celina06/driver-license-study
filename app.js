@@ -20,10 +20,10 @@ function newRound(){const qs=eligible(),groups=[[],[],[],[]];for(const q of qs){
 function ensureSession(){const allowed=new Set(eligible().map(q=>String(q.id)));if(!Array.isArray(state.session)||!state.session.length||state.session.some(id=>!allowed.has(String(id)))||new Set(state.session.map(String)).size!==allowed.size)newRound();if(state.cursor<0||state.cursor>=state.session.length)state.cursor=0;}
 let picked=[],revealed=false;
 function current(){return byId.get(String(state.session[state.cursor]));}
-function stats(){const qs=eligible();const remaining=state.session.slice(state.cursor).length;const seen=qs.filter(q=>state.seen[q.id]).length;const hard=qs.filter(q=>state.ratings[q.id]==='high').length;$('stats').textContent=`학습 가능 ${qs.length}문항 · 이번 회차 남음 ${remaining} · 풀이 기록 ${seen} · 어려움 ${hard}`;}
+function stats(){const qs=eligible();const remaining=state.session.slice(state.cursor).length;const seen=qs.filter(q=>state.seen[q.id]).length;const hard=qs.filter(q=>state.ratings[q.id]==='high').length;$('stats').textContent=`남은 문제 ${remaining} · 푼 문제 ${seen} · 어려움 ${hard}`;}
 function render(){ensureSession();const q=current();$('study').hidden=!q;$('empty').hidden=!!q;stats();if(!q){$('empty').textContent='해당 조건의 문항이 없습니다. 필터를 변경하거나 시각자료 검토 문항을 포함해 주세요.';return;}
- $('position').textContent=`${state.cursor+1} / ${state.session.length} · 문제은행 ${q.id}번 · ${state.round}회차`;
- $('topic').textContent=q.category+' · '+(q.audit.needsVisual?'시각자료 확인 필요':'원문 선택지·정답 대조');
+ $('position').textContent=`${state.cursor+1} / ${state.session.length} · 기출 ${q.id}번`;
+ $('topic').textContent='';
  $('question').textContent=q.question;
  $('visualNotice').hidden=true;const visual=$('questionImage');if(q.image){visual.hidden=false;visual.src='./'+q.image;visual.alt='문제은행 '+q.id+'번 원본 그림';}else{visual.hidden=true;visual.removeAttribute('src');}
  $('options').innerHTML=q.options.map((o,i)=>`<button class="option ${picked.includes(i+1)?'selected':''} ${revealed&&q.correct.includes(i+1)?'correct':''} ${revealed&&picked.includes(i+1)&&!q.correct.includes(i+1)?'wrong':''}" data-opt="${i+1}" ${revealed?'disabled':''}><b>${'①②③④⑤'[i]}</b><span>${esc(o)}</span></button>`).join('');
@@ -31,8 +31,8 @@ function render(){ensureSession();const q=current();$('study').hidden=!q;$('empt
  $('check').hidden=revealed;$('check').disabled=picked.length!==q.correct.length;$('result').hidden=!revealed;
  if(revealed){const ok=picked.length===q.correct.length&&picked.every(n=>q.correct.includes(n));$('verdict').textContent=(ok?'정답입니다. ':'오답입니다. ')+'정답 '+q.correct.map(i=>'①②③④⑤'[i-1]).join(', ');
  const s=q.solutionV9;const block=(heading,t)=>`<div class="solution-row"><b>${heading}</b><p>${esc(t)}</p></div>`;
- $('memo').innerHTML=block('정답 핵심 · 왜 그런가?',s.why)+block('착각하기 쉬운 조건 · 바른 이해',s.contrast)+block('한 줄 암기',s.memory)+(s.options.length?`<details class="option-review"><summary>확인된 선택지별 보충 설명</summary>${s.options.map(o=>`<div class="option-analysis"><b>${'①②③④⑤'[o.n-1]}</b><p>${esc(o.detail)}</p></div>`).join('')}</details>`:'');
- $('memoSource').textContent=`문제은행 ${q.id}번 · ${s.grade}`;
+ $('memo').innerHTML=block('왜 정답인가?',s.why)+block('헷갈리는 점',s.contrast)+block('암기 한 줄',s.memory)+(s.options.length?`<details class="option-review"><summary>확인된 선택지별 보충 설명</summary>${s.options.map(o=>`<div class="option-analysis"><b>${'①②③④⑤'[o.n-1]}</b><p>${esc(o.detail)}</p></div>`).join('')}</details>`:'');
+ $('memoSource').textContent='';
  $('explanation').textContent='법령 나열형 원문 해설은 학습 화면에서 생략했습니다. 핵심 풀이만 확인하세요.';}
  $('ratingStatus').textContent='현재 난이도: '+({high:'상',mid:'중',low:'하'}[state.ratings[q.id]]||'미분류');
 }
@@ -47,6 +47,5 @@ $('restart').onclick=()=>{if(confirm('새 무작위 회차를 시작할까요? �
 $('backup').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({version:7,state,exported:new Date().toISOString()},null,2)],{type:'application/json'}));a.download='운전면허_학습기록_v7.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);};
 $('restore').onclick=()=>$('restoreFile').click();$('restoreFile').onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(obj.version!==7||!obj.state||typeof obj.state.ratings!=='object')throw Error('v7 백업 파일이 아닙니다');if(confirm('기존 학습기록을 덮어쓸까요?')){state={...defaults,...obj.state};save();location.reload();}}catch(err){alert('복원 실패: '+err.message)}};
 $('reset').onclick=()=>{if(confirm('학습기록을 모두 삭제할까요?')){localStorage.removeItem(KEY);location.reload();}};
-$('auditSummary').textContent=`고유 문항 ${all.length}개 · 그림 ${all.filter(q=>q.image).length}개 · 핵심 풀이 간결화 · 법령 조항 나열 제거 · 선택지별 미검증 설명 숨김.`;
 ensureSession();save();render();
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
