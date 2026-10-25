@@ -25,7 +25,7 @@ function render(){ensureSession();const q=current();$('study').hidden=!q;$('empt
  $('position').textContent=`${state.cursor+1} / ${state.session.length} · 문제은행 ${q.id}번 · ${state.round}회차`;
  $('topic').textContent=q.category+' · '+(q.audit.needsVisual?'시각자료 확인 필요':'원문 선택지·정답 대조');
  $('question').textContent=q.question;
- $('visualNotice').hidden=!q.audit.needsVisual;
+ $('visualNotice').hidden=true;const visual=$('questionImage');if(q.image){visual.hidden=false;visual.src='./'+q.image;visual.alt='문제은행 '+q.id+'번 원본 그림';}else{visual.hidden=true;visual.removeAttribute('src');}
  $('options').innerHTML=q.options.map((o,i)=>`<button class="option ${picked.includes(i+1)?'selected':''} ${revealed&&q.correct.includes(i+1)?'correct':''} ${revealed&&picked.includes(i+1)&&!q.correct.includes(i+1)?'wrong':''}" data-opt="${i+1}" ${revealed?'disabled':''}><b>${'①②③④⑤'[i]}</b><span>${esc(o)}</span></button>`).join('');
  document.querySelectorAll('[data-opt]').forEach(el=>el.onclick=()=>{const n=Number(el.dataset.opt);if(q.correct.length===1)picked=[n];else picked=picked.includes(n)?picked.filter(v=>v!==n):[...picked,n];render();});
  $('check').hidden=revealed;$('check').disabled=picked.length!==q.correct.length;$('result').hidden=!revealed;
@@ -47,6 +47,6 @@ $('restart').onclick=()=>{if(confirm('새 무작위 회차를 시작할까요? �
 $('backup').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({version:7,state,exported:new Date().toISOString()},null,2)],{type:'application/json'}));a.download='운전면허_학습기록_v7.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);};
 $('restore').onclick=()=>$('restoreFile').click();$('restoreFile').onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(obj.version!==7||!obj.state||typeof obj.state.ratings!=='object')throw Error('v7 백업 파일이 아닙니다');if(confirm('기존 학습기록을 덮어쓸까요?')){state={...defaults,...obj.state};save();location.reload();}}catch(err){alert('복원 실패: '+err.message)}};
 $('reset').onclick=()=>{if(confirm('학습기록을 모두 삭제할까요?')){localStorage.removeItem(KEY);location.reload();}};
-$('auditSummary').textContent=`고유 문항 ${all.length}개. 원문 대조에서 5지선다 복구 9개, 시각자료·배열 검토 필요 ${all.filter(q=>q.audit.needsVisual).length}개(기본 학습 제외). 전체 1,000문항 검수본이 아닙니다.`;
+$('auditSummary').textContent=`고유 문항 ${all.length}개 · 공식 PDF 그림 복원 ${all.filter(q=>q.image).length}개 · 5지선다 복구 9개. 원본 PDF의 텍스트·이미지 위치 대조 완료. 풀이의 법령별 최종 검수는 별도 필요.`;
 ensureSession();save();render();
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
