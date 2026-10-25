@@ -30,10 +30,10 @@ function render(){ensureSession();const q=current();$('study').hidden=!q;$('empt
  document.querySelectorAll('[data-opt]').forEach(el=>el.onclick=()=>{const n=Number(el.dataset.opt);if(q.correct.length===1)picked=[n];else picked=picked.includes(n)?picked.filter(v=>v!==n):[...picked,n];render();});
  $('check').hidden=revealed;$('check').disabled=picked.length!==q.correct.length;$('result').hidden=!revealed;
  if(revealed){const ok=picked.length===q.correct.length&&picked.every(n=>q.correct.includes(n));$('verdict').textContent=(ok?'정답입니다. ':'오답입니다. ')+'정답 '+q.correct.map(i=>'①②③④⑤'[i-1]).join(', ');
- const s=q.solution;const block=(heading,t)=>`<p><b>${heading}</b><br>${esc(t)}</p>`;
- $('memo').innerHTML=block('정답 핵심',s.reason)+block('헷갈리는 조건·예외',s.caution)+block('암기 한 줄',s.memory);
- $('memoSource').textContent=`문제은행 ${q.id}번 · ${s.status==='reviewed'?'개별 확인 풀이':s.status==='needs_review'?'시각자료 확인 필요':'원문 기반 정리(개별 법규 검증 미완료)'}`;
- $('explanation').textContent=q.explanation||'원문 해설 없음';}
+ const s=q.solutionV9;const block=(heading,t)=>`<div class="solution-row"><b>${heading}</b><p>${esc(t)}</p></div>`;
+ $('memo').innerHTML=block('정답 핵심 · 왜 그런가?',s.why)+block('착각하기 쉬운 조건 · 바른 이해',s.contrast)+block('한 줄 암기',s.memory)+(s.options.length?`<details class="option-review"><summary>확인된 선택지별 보충 설명</summary>${s.options.map(o=>`<div class="option-analysis"><b>${'①②③④⑤'[o.n-1]}</b><p>${esc(o.detail)}</p></div>`).join('')}</details>`:'');
+ $('memoSource').textContent=`문제은행 ${q.id}번 · ${s.grade}`;
+ $('explanation').textContent='법령 나열형 원문 해설은 학습 화면에서 생략했습니다. 핵심 풀이만 확인하세요.';}
  $('ratingStatus').textContent='현재 난이도: '+({high:'상',mid:'중',low:'하'}[state.ratings[q.id]]||'미분류');
 }
 function move(delta){if(!state.session.length)return;const next=state.cursor+delta;if(next>=state.session.length){newRound();$('roundToast').textContent='이번 회차를 완료했습니다. 다음 회차에서는 어려운 문항이 앞쪽에 배치됩니다.';}else if(next<0){return;}else state.cursor=next;picked=[];revealed=false;save();render();}
@@ -47,6 +47,6 @@ $('restart').onclick=()=>{if(confirm('새 무작위 회차를 시작할까요? �
 $('backup').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({version:7,state,exported:new Date().toISOString()},null,2)],{type:'application/json'}));a.download='운전면허_학습기록_v7.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);};
 $('restore').onclick=()=>$('restoreFile').click();$('restoreFile').onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(obj.version!==7||!obj.state||typeof obj.state.ratings!=='object')throw Error('v7 백업 파일이 아닙니다');if(confirm('기존 학습기록을 덮어쓸까요?')){state={...defaults,...obj.state};save();location.reload();}}catch(err){alert('복원 실패: '+err.message)}};
 $('reset').onclick=()=>{if(confirm('학습기록을 모두 삭제할까요?')){localStorage.removeItem(KEY);location.reload();}};
-$('auditSummary').textContent=`고유 문항 ${all.length}개 · 공식 PDF 그림 복원 ${all.filter(q=>q.image).length}개 · 5지선다 복구 9개. 원본 PDF의 텍스트·이미지 위치 대조 완료. 풀이의 법령별 최종 검수는 별도 필요.`;
+$('auditSummary').textContent=`고유 문항 ${all.length}개 · 그림 ${all.filter(q=>q.image).length}개 · 핵심 풀이 간결화 · 법령 조항 나열 제거 · 선택지별 미검증 설명 숨김.`;
 ensureSession();save();render();
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
