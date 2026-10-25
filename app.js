@@ -26,6 +26,7 @@ function render(){ensureSession();const q=current();$('study').hidden=!q;$('empt
  $('topic').textContent='';
  $('question').textContent=q.question;
  $('visualNotice').hidden=true;const visual=$('questionImage');if(q.image){visual.hidden=false;visual.src='./'+q.image;visual.alt='문제은행 '+q.id+'번 원본 그림';}else{visual.hidden=true;visual.removeAttribute('src');}
+ $('scene').hidden=!q.sceneText; $('scene').innerHTML=q.sceneText?'<strong>도로 상황</strong><ul>'+q.sceneText.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul>':'';
  $('options').innerHTML=q.options.map((o,i)=>`<button class="option ${picked.includes(i+1)?'selected':''} ${revealed&&q.correct.includes(i+1)?'correct':''} ${revealed&&picked.includes(i+1)&&!q.correct.includes(i+1)?'wrong':''}" data-opt="${i+1}" ${revealed?'disabled':''}><b>${'①②③④⑤'[i]}</b><span>${esc(o)}</span></button>`).join('');
  document.querySelectorAll('[data-opt]').forEach(el=>el.onclick=()=>{const n=Number(el.dataset.opt);if(q.correct.length===1)picked=[n];else picked=picked.includes(n)?picked.filter(v=>v!==n):[...picked,n];render();});
  $('check').hidden=revealed;$('check').disabled=picked.length!==q.correct.length;$('result').hidden=!revealed;

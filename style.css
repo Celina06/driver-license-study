@@ -7,3 +7,5 @@
 .solution-row{padding:12px 0;border-bottom:1px solid #dce3ef}.solution-row b{display:block;margin-bottom:6px;color:#173f81}.solution-row p{margin:0;line-height:1.65}.option-review{margin-top:15px;padding:10px;background:#fff;border-radius:12px}.option-analysis{padding:12px 3px;border-bottom:1px solid #e5e7eb}.option-analysis p{margin:5px 0 0;font-size:.92em;line-height:1.55}.option-review summary{cursor:pointer;font-weight:700}
 
 header{margin-bottom:16px}header h1{font-size:23px;margin:0 0 8px}.version{font-size:12px;font-weight:500;color:#64748b}.visual-toggle{font-size:13px;color:#475569}.visual-toggle input{accent-color:#183f82}.control{margin:4px 0 12px}.paper{margin-top:14px}.solution-row{padding:9px 0}.memo{margin:12px 0}.eyebrow{font-size:12px}.tools{margin-top:18px}#roundToast:empty{display:none}
+
+.scene{margin:12px 0 20px;padding:13px 15px;background:#f3f7ff;border:1px solid #dce5f4;border-radius:12px;font-size:15px;line-height:1.6}.scene strong{color:#173f81}.scene ul{margin:7px 0 0;padding-left:20px}.scene li{margin:4px 0}.scene[hidden]{display:none}
