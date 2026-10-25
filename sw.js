@@ -1,4 +1,4 @@
-const CACHE='license-exam-linked-v4';
+const CACHE='license-exam-linked-v5';
 const ASSETS=['./','./index.html','./app.js','./data.js','./style.css','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('license-exam-linked-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
