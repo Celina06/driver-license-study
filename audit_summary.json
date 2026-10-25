@@ -1,0 +1,30 @@
+{
+  "uniqueQuestions": 143,
+  "repairedFiveOptionIds": [
+    698,
+    716,
+    717,
+    719,
+    758,
+    765,
+    769,
+    793,
+    844
+  ],
+  "quarantinedVisualOrAmbiguous": [
+    493,
+    698,
+    716,
+    717,
+    719,
+    758,
+    765,
+    769,
+    793,
+    844,
+    952
+  ],
+  "quarantinedCount": 11,
+  "readyCount": 132,
+  "scope": "previously selected 143 questions, not the full 1000 question bank"
+}

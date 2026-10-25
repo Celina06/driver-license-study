@@ -1,25 +1,52 @@
-
-// Per-question solutions: prefer original question-bank explanation over loosely keyword-matched notes.
-// Additional notes are only shown for individually reviewed question IDs.
-function makeSolution(p){
-  const s=SOLUTIONS[String(p.q.id)];
-  if(!s)return '<p>이 문항의 풀이를 찾을 수 없습니다. 원본 PDF를 확인하세요.</p>';
-  const warning=s.status==='check'?'<p class="review-flag">⚠ 원본 문제·정답 대조가 필요한 문항입니다. 현재 채점 결과를 확정적으로 외우지 마세요.</p>':'';
-  return warning+'<p><b>정답 핵심</b><br>'+escape(s.reason)+'</p><p><b>헷갈리는 조건·예외</b><br>'+escape(s.caution)+'</p><p><b>암기 한 줄</b><br>'+escape(s.memory)+'</p>';
+'use strict';
+const KEY='license-study-v7';const OLD='exam-linked-v2';const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const all=EXAM_QUESTIONS;const byId=new Map(all.map(q=>[String(q.id),q]));
+const defaults={ratings:{},attempts:{},seen:{},category:'all',difficulty:'all',includeVisual:false,session:[],cursor:0,round:0};
+let state={...defaults};try{state={...state,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{}
+for(const key of ['ratings','attempts','seen'])if(!state[key]||typeof state[key]!=='object')state[key]={};
+// Convert v6 per-note progress to unique question IDs, preserving the most difficult rating.
+if(!localStorage.getItem(KEY))try{
+ const old=JSON.parse(localStorage.getItem(OLD)||'{}');const oldRatings=old.ratings||{},oldAttempts=old.attempts||{};
+ const rank={high:3,mid:2,low:1};
+ for(const [k,r] of Object.entries(oldRatings)){const id=k.match(/-(\d+)$/)?.[1];if(id&&byId.has(id)&&rank[r]>(rank[state.ratings[id]]||0))state.ratings[id]=r;}
+ for(const [k,v] of Object.entries(oldAttempts)){const id=k.match(/-(\d+)$/)?.[1];if(id&&byId.has(id)){const prev=state.attempts[id]||{count:0,wrong:0};state.attempts[id]={count:Math.max(prev.count,v.count||0),wrong:Math.max(prev.wrong,v.wrong||0)};if(v.count)state.seen[id]=true;}}
+}catch{}
+const save=()=>localStorage.setItem(KEY,JSON.stringify(state));
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a};
+const eligible=()=>all.filter(q=>(state.category==='all'||q.category===state.category)&&(state.includeVisual||!q.audit.needsVisual)&&(state.difficulty==='all'||(state.difficulty==='unrated'?!state.ratings[q.id]:state.difficulty==='wrong'?((state.attempts[q.id]?.wrong||0)>0):state.ratings[q.id]===state.difficulty)));
+// One ID per round; new/unrated first, then mid/high, low last. Shuffle inside each bucket.
+function newRound(){const qs=eligible(),groups=[[],[],[],[]];for(const q of qs){const r=state.ratings[q.id];const g=!r?0:r==='high'?1:r==='mid'?2:3;groups[g].push(String(q.id));}state.session=groups.flatMap(g=>shuffle(g));state.cursor=0;state.round++;save();}
+function ensureSession(){const allowed=new Set(eligible().map(q=>String(q.id)));if(!Array.isArray(state.session)||!state.session.length||state.session.some(id=>!allowed.has(String(id)))||new Set(state.session.map(String)).size!==allowed.size)newRound();if(state.cursor<0||state.cursor>=state.session.length)state.cursor=0;}
+let picked=[],revealed=false;
+function current(){return byId.get(String(state.session[state.cursor]));}
+function stats(){const qs=eligible();const remaining=state.session.slice(state.cursor).length;const seen=qs.filter(q=>state.seen[q.id]).length;const hard=qs.filter(q=>state.ratings[q.id]==='high').length;$('stats').textContent=`학습 가능 ${qs.length}문항 · 이번 회차 남음 ${remaining} · 풀이 기록 ${seen} · 어려움 ${hard}`;}
+function render(){ensureSession();const q=current();$('study').hidden=!q;$('empty').hidden=!!q;stats();if(!q){$('empty').textContent='해당 조건의 문항이 없습니다. 필터를 변경하거나 시각자료 검토 문항을 포함해 주세요.';return;}
+ $('position').textContent=`${state.cursor+1} / ${state.session.length} · 문제은행 ${q.id}번 · ${state.round}회차`;
+ $('topic').textContent=q.category+' · '+(q.audit.needsVisual?'시각자료 확인 필요':'원문 선택지·정답 대조');
+ $('question').textContent=q.question;
+ $('visualNotice').hidden=!q.audit.needsVisual;
+ $('options').innerHTML=q.options.map((o,i)=>`<button class="option ${picked.includes(i+1)?'selected':''} ${revealed&&q.correct.includes(i+1)?'correct':''} ${revealed&&picked.includes(i+1)&&!q.correct.includes(i+1)?'wrong':''}" data-opt="${i+1}" ${revealed?'disabled':''}><b>${'①②③④⑤'[i]}</b><span>${esc(o)}</span></button>`).join('');
+ document.querySelectorAll('[data-opt]').forEach(el=>el.onclick=()=>{const n=Number(el.dataset.opt);if(q.correct.length===1)picked=[n];else picked=picked.includes(n)?picked.filter(v=>v!==n):[...picked,n];render();});
+ $('check').hidden=revealed;$('check').disabled=picked.length!==q.correct.length;$('result').hidden=!revealed;
+ if(revealed){const ok=picked.length===q.correct.length&&picked.every(n=>q.correct.includes(n));$('verdict').textContent=(ok?'정답입니다. ':'오답입니다. ')+'정답 '+q.correct.map(i=>'①②③④⑤'[i-1]).join(', ');
+ const s=q.solution;const block=(heading,t)=>`<p><b>${heading}</b><br>${esc(t)}</p>`;
+ $('memo').innerHTML=block('정답 핵심',s.reason)+block('헷갈리는 조건·예외',s.caution)+block('암기 한 줄',s.memory);
+ $('memoSource').textContent=`문제은행 ${q.id}번 · ${s.status==='reviewed'?'개별 확인 풀이':s.status==='needs_review'?'시각자료 확인 필요':'원문 기반 정리(개별 법규 검증 미완료)'}`;
+ $('explanation').textContent=q.explanation||'원문 해설 없음';}
+ $('ratingStatus').textContent='현재 난이도: '+({high:'상',mid:'중',low:'하'}[state.ratings[q.id]]||'미분류');
 }
-const KEY='exam-linked-v2';const $=id=>document.getElementById(id);const Q=new Map(QUESTIONS.map(x=>[String(x.id),x]));const pairs=NOTES.flatMap(n=>n.questionIds.map(qid=>({key:n.id+'-'+qid,note:n,q:Q.get(String(qid))}))).filter(x=>x.q);let state={ratings:{},attempts:{},last:null,category:'all',difficulty:'all',order:'priority'};try{state={...state,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{}// Recover invalid/stale filter values persisted by earlier versions.
-const categories=new Set(NOTES.map(n=>n.category).filter(v=>typeof v==='string'&&v.trim()));
-if(state.category!=='all'&&!categories.has(state.category))state.category='all';
-if(!['all','unrated','high','mid','low','wrong'].includes(state.difficulty))state.difficulty='all';
-if(!['priority','random','sequential'].includes(state.order))state.order='priority';
-if(!state.ratings||typeof state.ratings!=='object')state.ratings={};
-if(!state.attempts||typeof state.attempts!=='object')state.attempts={};
-let current=null,selected=[],checked=false;const save=()=>{state.last=current;localStorage.setItem(KEY,JSON.stringify(state))};const escape=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');const bold=s=>escape(s).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');function pool(){let a=pairs.filter(p=>(state.category==='all'||p.note.category===state.category)&&(state.difficulty==='all'||(state.difficulty==='unrated'?!state.ratings[p.key]:state.difficulty==='wrong'?state.attempts[p.key]?.wrong:state.ratings[p.key]===state.difficulty)));if(state.order==='priority'){const w={high:0,mid:1,undefined:2,low:3};a.sort((x,y)=>(w[state.ratings[x.key]||'undefined']-w[state.ratings[y.key]||'undefined'])||((state.attempts[x.key]?.count||0)-(state.attempts[y.key]?.count||0)))}else if(state.order==='sequential')a.sort((x,y)=>Number(x.q.id)-Number(y.q.id));else a.sort((x,y)=>((hash(x.key+shuffleSeed)-hash(y.key+shuffleSeed))));return a}let shuffleSeed=String(Date.now());function hash(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return h}function render(){let a=pool();if(!a.some(p=>p.key===current))current=a[0]?.key||null;let p=a.find(x=>x.key===current);$('study').hidden=!p;$('empty').hidden=!!p;if(!p){$('empty').textContent='현재 조건에 맞는 문제가 없습니다. 주제와 난이도를 전체로 변경해 주세요. 전체에서도 비어 있으면 앱 파일을 다시 업로드해야 합니다.';}$('stats').textContent=`연결 암기 ${NOTES.filter(n=>n.questionIds.length).length}항목 · 기출 ${new Set(pairs.map(x=>x.q.id)).size}문항 · 학습카드 ${pairs.length}장 · 분류 ${Object.keys(state.ratings).length}장`;if(!p)return;let i=a.indexOf(p);$('position').textContent=`${i+1} / ${a.length} · 문제은행 ${p.q.id}번`;$('topic').textContent=(p.note.category||'기타')+' · '+p.note.topic;$('question').textContent=p.q.question+(SOLUTIONS[String(p.q.id)]?.status==='check'?' ⚠ [원본 정답 대조 필요]':'');$('options').innerHTML=p.q.options.map((o,i)=>`<button class="option ${selected.includes(i+1)?'selected':''} ${checked&&p.q.correct.includes(i+1)?'correct':''} ${checked&&selected.includes(i+1)&&!p.q.correct.includes(i+1)?'wrong':''}" data-opt="${i+1}"><b>${'①②③④'[i]}</b><span>${escape(o)}</span></button>`).join('');document.querySelectorAll('[data-opt]').forEach(b=>{b.disabled=checked;b.onclick=()=>{let v=Number(b.dataset.opt);if(p.q.correct.length===1)selected=[v];else selected=selected.includes(v)?selected.filter(x=>x!==v):selected.length<p.q.correct.length?[...selected,v]:[...selected.slice(1),v];render()}});$('check').hidden=checked;$('check').disabled=selected.length!==p.q.correct.length;$('result').hidden=!checked;if(checked){let ok=selected.length===p.q.correct.length&&selected.every(v=>p.q.correct.includes(v));$('verdict').textContent=(ok?'정답입니다. ':'오답입니다. ')+`정답 ${p.q.correct.map(i=>'①②③④'[i-1]).join(', ')}`;$('memo').innerHTML=makeSolution(p);$('memoSource').textContent='문제은행 '+p.q.id+'번 · 정답 '+p.q.correct.map(i=>'①②③④'[i-1]).join(', ');$('explanation').textContent=p.q.explanation||'문제은행에 추출된 해설 없음'}save()}function go(delta){let a=pool();if(!a.length)return;let i=a.findIndex(p=>p.key===current);current=a[(i+delta+a.length)%a.length].key;selected=[];checked=false;render()}$('check').onclick=()=>{if(checked)return;let p=pairs.find(x=>x.key===current);let ok=selected.length===p.q.correct.length&&selected.every(v=>p.q.correct.includes(v));let old=state.attempts[current]||{count:0,wrong:0};state.attempts[current]={count:old.count+1,wrong:old.wrong+(!ok?1:0),last:Date.now()};checked=true;render()};$('prev').onclick=()=>go(-1);$('next').onclick=()=>go(1);document.querySelectorAll('[data-rate]').forEach(b=>b.onclick=()=>{state.ratings[current]=b.dataset.rate;save();go(1)});for(let id of ['category','difficulty','order']){$(id).onchange=()=>{state[id]=$(id).value;current=null;selected=[];checked=false;if(id==='order')shuffleSeed=String(Date.now());render()}}
-$('category').innerHTML='<option value="all">전체 주제</option>'+Array.from(new Set(NOTES.map(n=>n.category).filter(x=>x!=null&&String(x).trim()))).map(x=>`<option value="${escape(x)}">${escape(x)}</option>`).join('');
-for(let id of ['category','difficulty','order']){$(id).value=state[id];if($(id).selectedIndex<0){state[id]=id==='order'?'priority':'all';$(id).value=state[id];}}
-$('unmatched').innerHTML=NOTES.filter(n=>!n.questionIds.length).map(n=>`<div class="unmatched"><b>${escape(n.topic)}</b> (${escape(n.source)})<div>${bold(n.memo)}</div></div>`).join('')||'없음';
-$('backup').onclick=()=>{let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({version:2,state,exported:new Date().toISOString()},null,2)],{type:'application/json'}));a.download='운전면허_기출학습_백업.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
-$('restore').onclick=()=>$('restoreFile').click();
-$('restoreFile').onchange=async e=>{try{let o=JSON.parse(await e.target.files[0].text());if(o.version!==2||!o.state||typeof o.state.ratings!=='object')throw Error('지원하지 않는 파일');if(confirm('기존 기록을 덮어쓸까요?')){state={...state,...o.state};save();location.reload()}}catch(err){alert('복원 실패: '+err.message)}};
-$('reset').onclick=()=>{if(confirm('학습 기록을 모두 삭제할까요?')){localStorage.removeItem(KEY);location.reload()}};
-current=state.last;render();if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+function move(delta){if(!state.session.length)return;const next=state.cursor+delta;if(next>=state.session.length){newRound();$('roundToast').textContent='이번 회차를 완료했습니다. 다음 회차에서는 어려운 문항이 앞쪽에 배치됩니다.';}else if(next<0){return;}else state.cursor=next;picked=[];revealed=false;save();render();}
+$('check').onclick=()=>{const q=current();if(!q||revealed)return;const ok=picked.length===q.correct.length&&picked.every(n=>q.correct.includes(n));const id=String(q.id),prev=state.attempts[id]||{count:0,wrong:0};state.attempts[id]={count:prev.count+1,wrong:prev.wrong+(ok?0:1),last:Date.now()};state.seen[id]=true;revealed=true;save();render();};
+$('next').onclick=()=>move(1);$('prev').onclick=()=>move(-1);
+document.querySelectorAll('[data-rate]').forEach(b=>b.onclick=()=>{const q=current();if(!q)return;state.ratings[q.id]=b.dataset.rate;save();move(1);});
+$('category').innerHTML='<option value="all">전체 주제</option>'+[...new Set(all.map(q=>q.category))].sort().map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+for(const id of ['category','difficulty']){const el=$(id);el.value=state[id];if(el.selectedIndex<0){state[id]='all';el.value='all';}el.onchange=()=>{state[id]=el.value;newRound();picked=[];revealed=false;render();};}
+$('includeVisual').checked=!!state.includeVisual;$('includeVisual').onchange=()=>{state.includeVisual=$('includeVisual').checked;newRound();picked=[];revealed=false;render();};
+$('restart').onclick=()=>{if(confirm('새 무작위 회차를 시작할까요? 학습기록은 유지됩니다.')){newRound();picked=[];revealed=false;render();}};
+$('backup').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({version:7,state,exported:new Date().toISOString()},null,2)],{type:'application/json'}));a.download='운전면허_학습기록_v7.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);};
+$('restore').onclick=()=>$('restoreFile').click();$('restoreFile').onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(obj.version!==7||!obj.state||typeof obj.state.ratings!=='object')throw Error('v7 백업 파일이 아닙니다');if(confirm('기존 학습기록을 덮어쓸까요?')){state={...defaults,...obj.state};save();location.reload();}}catch(err){alert('복원 실패: '+err.message)}};
+$('reset').onclick=()=>{if(confirm('학습기록을 모두 삭제할까요?')){localStorage.removeItem(KEY);location.reload();}};
+$('auditSummary').textContent=`고유 문항 ${all.length}개. 원문 대조에서 5지선다 복구 9개, 시각자료·배열 검토 필요 ${all.filter(q=>q.audit.needsVisual).length}개(기본 학습 제외). 전체 1,000문항 검수본이 아닙니다.`;
+ensureSession();save();render();
+if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
